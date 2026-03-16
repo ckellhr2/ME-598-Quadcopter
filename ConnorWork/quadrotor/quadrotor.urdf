@@ -7,36 +7,38 @@
   <link name="base_link">
     <inertial>
       <origin xyz="0 0 0"/>
-      <mass value="0.5"/>
+      <mass value="0.48"/>
       <inertia ixx="0.0023" ixy="0" ixz="0" iyy="0.0023" iyz="0" izz="0.004"/>
     </inertial>
 
-    <!-- Simple body visual -->
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
-        <box size="0.2 0.2 0.05"/>
+        <box size="0.20 0.20 0.05"/>
       </geometry>
       <material name="gray">
         <color rgba="0.6 0.6 0.6 1"/>
       </material>
     </visual>
 
-    <!-- Simple collision -->
     <collision>
       <origin xyz="0 0 0"/>
       <geometry>
-        <box size="0.2 0.2 0.05"/>
+        <box size="0.20 0.20 0.05"/>
       </geometry>
     </collision>
   </link>
 
   <!-- ===================== -->
-  <!-- Rotor links           -->
+  <!-- Rotor template        -->
   <!-- ===================== -->
-
-  <!-- Front (x+) -->
+  <!-- Each rotor has small mass and inertia -->
   <link name="rotor1">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
@@ -48,8 +50,12 @@
     </visual>
   </link>
 
-  <!-- Left (y+) -->
   <link name="rotor2">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
@@ -61,8 +67,12 @@
     </visual>
   </link>
 
-  <!-- Back (x−) -->
   <link name="rotor3">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
@@ -74,8 +84,12 @@
     </visual>
   </link>
 
-  <!-- Right (y−) -->
   <link name="rotor4">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
     <visual>
       <origin xyz="0 0 0"/>
       <geometry>
