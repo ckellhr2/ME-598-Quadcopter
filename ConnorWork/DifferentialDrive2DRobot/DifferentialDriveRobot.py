@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from DronePlots import plot_logs
 from GoalChecker import reached_goal
 from ApplyInputs import apply_inputs
-from LQRController import goal_controller_lqr
+from iLQRController import ilqr_plan
+
 
 log = []  # log for states + inputs
 tolerance=0.2 #tolerance for goal checking to see if position has been reached
@@ -52,23 +53,96 @@ def main():
 
     goal = [2.0, 2.0]
 
+    # --- Create marker for visualization
+    goal_radius = 0.05
+    goal_visual = p.createVisualShape(
+        shapeType=p.GEOM_SPHERE,
+        radius=goal_radius,
+        rgbaColor=[0, 1, 0, 1]   # green
+    )
+    goal_marker = p.createMultiBody(
+        baseMass=0,              # no physics
+        baseVisualShapeIndex=goal_visual,
+        basePosition=[goal[0], goal[1], 0]  # sits on ground
+    )
+    #place obstacles, note: controller does not account for them at all yet
+    obstacle_radius = 0.25
+    obstacle_visual = p.createVisualShape(
+        shapeType=p.GEOM_SPHERE,
+        radius=obstacle_radius,
+        rgbaColor=[1, 0, 0, 1]   # red
+    )
+    obstacle_1 = p.createMultiBody(
+        baseMass=0,              # no physics
+        baseVisualShapeIndex=obstacle_visual,
+        basePosition=[goal[0]/3, goal[1]/3, 0]  # 1/3 of the way to goal
+    )
+    obstacle_2 = p.createMultiBody(
+        baseMass=0,              # no physics
+        baseVisualShapeIndex=obstacle_visual,
+        basePosition=[0, 2*goal[1]/3, 0]  
+    )
+
+    obstacle_3 = p.createMultiBody(
+        baseMass=0,              # no physics
+        baseVisualShapeIndex=obstacle_visual,
+        basePosition=[goal[0], 2*goal[1]/3, 0] 
+    )
+
+    # get initial state from PyBullet
+    pos, orn = p.getBasePositionAndOrientation(robotId)
+    x0, y0, _ = pos
+    yaw0 = p.getEulerFromQuaternion(orn)[2]
+    start_state = np.array([x0, y0, yaw0])
+
+    # obstacles: (x, y, radius)
+    obstacles = [
+        (goal[0]/3, goal[1]/3, obstacle_radius),
+        (0.0, 2*goal[1]/3, obstacle_radius),
+        (goal[0], 2*goal[1]/3, obstacle_radius),
+    ]
+
+    X_ref, U_ref = ilqr_plan(start_state, goal, obstacles)
+    step_idx = 0
+
+    # PyBullet runs at 240 Hz, iLQR at dt = 0.05 → 20 Hz
+    sim_dt = 1/240
+    ilqr_dt = 0.05
+    ilqr_dt_steps = int(ilqr_dt / sim_dt)   # = 12
+
+    ilqr_step_counter = 0
+
     for i in range(10000):
-        if reached_goal(robotId, goal,tolerance):
-            print("Goal reached!")
+
+        # Stop if we reached the end of the iLQR plan
+        if step_idx >= len(U_ref):
+            print("iLQR horizon finished")
             break
-        
-        omega_r, omega_l = goal_controller_lqr(robotId, goal)
+
+        # Only advance iLQR control every 12 PyBullet steps
+        if ilqr_step_counter == 0:
+            v, w = U_ref[step_idx]
+            step_idx += 1
+
+            # Convert (v, w) → wheel speeds
+            r = 0.05
+            L = 0.20
+            omega_r = (v + (L/2)*w) / r
+            omega_l = (v - (L/2)*w) / r
+
+        # Increment counter (wrap around every 12 steps)
+        ilqr_step_counter = (ilqr_step_counter + 1) % ilqr_dt_steps
+
+        # Apply wheel speeds
         apply_inputs(robotId, omega_l=omega_l, omega_r=omega_r)
         log_state(robotId, omega_l, omega_r)
 
         p.stepSimulation()
-        time.sleep(1. / 240.)
-
+        time.sleep(sim_dt)
     p.disconnect()
 
     # show_plots=True to show, False to suppress
     plot_logs(log, show_plots=False)
-
 
 if __name__ == "__main__":
     main()
