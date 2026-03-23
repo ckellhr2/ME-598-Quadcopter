@@ -51,7 +51,7 @@ def main():
     urdf_path = os.path.join(os.path.dirname(__file__), "diff_drive.urdf")
     robotId = p.loadURDF(urdf_path, startPos, startOrientation)
 
-    goal = [2.0, 2.0]
+    goal = [5.0, 5.0]
 
     # --- Create marker for visualization
     goal_radius = 0.05
@@ -65,8 +65,8 @@ def main():
         baseVisualShapeIndex=goal_visual,
         basePosition=[goal[0], goal[1], 0]  # sits on ground
     )
-    #place obstacles, note: controller does not account for them at all yet
-    obstacle_radius = 0.25
+    #place obstacles, 
+    obstacle_radius = .75
     obstacle_visual = p.createVisualShape(
         shapeType=p.GEOM_SPHERE,
         radius=obstacle_radius,
@@ -139,6 +139,19 @@ def main():
 
         p.stepSimulation()
         time.sleep(sim_dt)
+
+
+        pos, orn = p.getBasePositionAndOrientation(robotId)
+        x_bot, y_bot, z_bot = pos
+
+        # Recenter camera on the robot
+        p.resetDebugVisualizerCamera(
+            cameraDistance=4.0,      # zoom level
+            cameraYaw=45,            # angle around the robot
+            cameraPitch=-30,         # tilt downward
+            cameraTargetPosition=[x_bot, y_bot, 0.1]
+        )
+
     p.disconnect()
 
     # show_plots=True to show, False to suppress
