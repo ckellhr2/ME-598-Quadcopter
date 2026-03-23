@@ -35,7 +35,7 @@ def ilqr_plan(start_state, goal, obstacles,
               N=400, dt=0.05,
               Q=np.array([10.0, 10.0]),
               R=np.array([0.1, 0.1]),
-              Qf=np.array([200.0, 200.0]),
+              Qf=np.array([2000.0, 2000.0]),
               obs_weight=200.0,
               max_iters=50):
     """
