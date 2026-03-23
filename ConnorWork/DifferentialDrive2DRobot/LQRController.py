@@ -9,63 +9,55 @@ def lqr(A, B, Q, R):
     return K
 
 def goal_controller_lqr(body_id, goal):
-    # Robot pose
+    # Pose
     pos, orn = p.getBasePositionAndOrientation(body_id)
     x, y, _ = pos
     yaw = p.getEulerFromQuaternion(orn)[2]
 
     gx, gy = goal
 
-    # Error in world frame
-    ex = gx - x
-    ey = gy - y
-    etheta = math.atan2(ey, ex) - yaw
+    # Errors
+    dx = gx - x
+    dy = gy - y
+    distance = math.sqrt(dx*dx + dy*dy)
 
-    # Wrap angle
-    etheta = (etheta + math.pi) % (2 * math.pi) - math.pi
+    # Forward velocity reference (critical!)
+    v_ref = min(1.0, distance)
+
+    # Lateral error in robot frame
+    e_y = dx * math.sin(yaw) - dy * math.cos(yaw)
+
+    # Heading error
+    desired_yaw = math.atan2(dy, dx)
+    e_theta = desired_yaw - yaw
+    e_theta = (e_theta + math.pi) % (2 * math.pi) - math.pi
 
     # State vector
-    e = np.matrix([[ex], [ey], [etheta]])
+    e = np.array([[e_y],
+                  [e_theta]])
 
-    # Robot parameters, must match Diff_drive.urdf
-    r = 0.05   # wheel radius
-    L = 0.20   # wheel base
+    # Linearized system
+    A = np.array([[0.0,      v_ref],
+                  [0.0,      0.0  ]])
 
-    # Actual State Space
-    # A = np.zeros((3,3)) #robot only moves when wheels turn so states have no impact on dynamics
-    # B = np.matrix([
-    #   [-r/2*cos(theta), -r/2*cos(theta)],
-    #   [-r/2*sin(theta), -r/2*sin(theta)],
-    #   [r/L, -r/L]
-    #])
+    B = np.array([[0.0],
+                  [1.0]])
 
-    # Linearization around small error
-    A = np.matrix([
-        [0, 0, 0],
-        [0, 0, -1],   # ey_dot ≈ -w, needed to make system fully controllable
-        [0, 0, 0]
-    ])
+    # Costs
+    Q = np.diag([6.0, 3.0])
+    R = np.array([[0.4]])
 
-    # Map wheel speeds to (v, w)
-    # v = r/2 (wr + wl)
-    # w = r/L (wr - wl)
-    B = np.matrix([
-        [ r/2,     r/2     ],
-        [ 0,       0       ],
-        [ r/L,    -r/L     ]
-    ])
-
-    # Cost matrices
-    Q = np.diag([3.0, 3.0, 2.0]) #error costs
-    R = np.diag([0.1, 0.1]) #control costs
-
-    # Compute LQR gain
+    # LQR gain
     K = lqr(A, B, Q, R)
 
-    # Control law: u = -K e
-    u = -K @ e
+    # Control law: w = -K e
+    w = float(-(K @ e)[0])
 
-    omega_r = float(u[0])
-    omega_l = float(u[1])
+    # Convert (v_ref, w) → wheel speeds
+    r = 0.05
+    L = 0.20
+
+    omega_r = (v_ref + (L/2)*w) / r
+    omega_l = (v_ref - (L/2)*w) / r
 
     return omega_r, omega_l
