@@ -3,13 +3,13 @@ import math
 
 def diffdrive_dynamics(x, u, dt):
     # x = [x, y, theta], u = [v, w]
-    px, py, th = x
-    v, w = u
+    px, py, theta = x
+    v, omega = u
 
-    px_next = px + dt * v * math.cos(th)
-    py_next = py + dt * v * math.sin(th)
-    th_next = th + dt * w
-    return np.array([px_next, py_next, th_next])
+    px_next = px + dt * v * math.cos(theta)
+    py_next = py + dt * v * math.sin(theta)
+    theta_next = theta + dt * omega
+    return np.array([px_next, py_next, theta_next])
 
 def cost_function(x, u, goal, obstacles, Q, R, obs_weight):
     # state cost
@@ -42,56 +42,59 @@ def ilqr_plan(start_state, goal, obstacles,
     iLQR for diff-drive with state x=[x,y,theta], control u=[v,w].
     Returns arrays X (N+1,3), U (N,2).
     """
-    n_x = 3
-    n_u = 2
+    n_x = 3 #3 states
+    n_u = 2 #inputs here are linear velocity and angular velocity
 
     # initial guess: straight-line, small forward velocity
     U = np.zeros((N, n_u))
     U[:, 0] = 0.5  # v
-    U[:, 1] = 0.0  # w
+    U[:, 1] = 0.0  # omega
 
     def rollout(x0, U):
         X = np.zeros((N+1, n_x))
         X[0] = x0
         for k in range(N):
             X[k+1] = diffdrive_dynamics(X[k], U[k], dt)
-        return X
+        return X # X is the predicted trajectory of all states given starting state and a control sequence
 
-    X = rollout(start_state, U)
+    X = rollout(start_state, U) #put in current state and guess of control sequence and get predicted trajectory
 
     for it in range(max_iters):
         # backward pass
-        Vx = np.zeros(n_x)
-        Vxx = np.zeros((n_x, n_x))
+        Vx = np.zeros(n_x) #empty array for fist gradient
+        Vxx = np.zeros((n_x, n_x)) #empty array for second gradient
 
         # terminal cost (only position)
-        dx = X[-1,0] - goal[0]
-        dy = X[-1,1] - goal[1]
-        Vx[0] = 2*Qf[0]*dx
-        Vx[1] = 2*Qf[1]*dy
-        Vxx[0,0] = 2*Qf[0]
+        error_x = X[-1,0] - goal[0] #preditced final x position - goal x position
+        error_y = X[-1,1] - goal[1] #predicted final y position - goal y position
+        
+        #terminal cost equal to Qf*error^2, break it into each state for gradients
+        #since Qf is diagonal and theta error doesn't matter, we can simplify the derivatives
+        Vx[0] = 2*Qf[0]*error_x #first gradient of terminal cost for x error
+        Vx[1] = 2*Qf[1]*error_y
+        Vxx[0,0] = 2*Qf[0] #Hessian of terminal cost
         Vxx[1,1] = 2*Qf[1]
 
-        K = np.zeros((N, n_u, n_x))
-        k_ff = np.zeros((N, n_u))
+        K = np.zeros((N, n_u, n_x)) #gains
+        k_ff = np.zeros((N, n_u))   #feed forward correction (even if state is perfect how can i reduce costs?)
 
         for k in reversed(range(N)):
             xk = X[k]
             uk = U[k]
 
-            th = xk[2]
+            theta = xk[2]
             v = uk[0]
-            w = uk[1]
+            omega = uk[1]
 
             # linearized dynamics: x_{k+1} = f + A dx + B du
             A = np.array([
-                [1.0, 0.0, -dt * v * math.sin(th)],
-                [0.0, 1.0,  dt * v * math.cos(th)],
+                [1.0, 0.0, -dt * v * math.sin(theta)],
+                [0.0, 1.0,  dt * v * math.cos(theta)],
                 [0.0, 0.0,  1.0]
             ])
             B = np.array([
-                [dt * math.cos(th), 0.0],
-                [dt * math.sin(th), 0.0],
+                [dt * math.cos(theta), 0.0],
+                [dt * math.sin(theta), 0.0],
                 [0.0,               dt]
             ])
 
