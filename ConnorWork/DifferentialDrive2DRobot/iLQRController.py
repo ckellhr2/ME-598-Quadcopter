@@ -25,7 +25,7 @@ def cost_function(x, u, goal, obstacles, Q, R, obs_weight):
     for (ox, oy, orad) in obstacles:
         dist = math.hypot(x[0] - ox, x[1] - oy)
         # soft barrier around obstacle
-        safe_dist = orad + 0.2
+        safe_dist = orad + 0.75
         if dist < safe_dist:
             obs_cost += obs_weight * (safe_dist - dist)**2
 
@@ -33,10 +33,10 @@ def cost_function(x, u, goal, obstacles, Q, R, obs_weight):
 
 def ilqr_plan(start_state, goal, obstacles,
               N=400, dt=0.05,
-              Q=np.array([10.0, 10.0]),
+              Q=np.array([15.0, 15.0]),
               R=np.array([0.1, 0.1]),
-              Qf=np.array([2000.0, 2000.0]),
-              obs_weight=200.0,
+              Qf=np.array([2500.0, 2500.0]),
+              obs_weight=210.0,
               max_iters=50):
     """
     iLQR for diff-drive with state x=[x,y,theta], control u=[v,w].
