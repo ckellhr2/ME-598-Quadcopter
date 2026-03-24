@@ -51,7 +51,7 @@ def main():
     urdf_path = os.path.join(os.path.dirname(__file__), "diff_drive.urdf")
     robotId = p.loadURDF(urdf_path, startPos, startOrientation)
 
-    goal = [5.0, 5.0]
+    goal = [7.0, 7.0]
 
     # --- Create marker for visualization
     goal_radius = 0.05
@@ -67,6 +67,9 @@ def main():
     )
     #place obstacles, 
     obstacle_radius = .75
+    obstacle1_position = [2,2]
+    obstacle2_position = [4,4]
+    obstacle3_position = [2,4]
     obstacle_visual = p.createVisualShape(
         shapeType=p.GEOM_SPHERE,
         radius=obstacle_radius,
@@ -75,18 +78,18 @@ def main():
     obstacle_1 = p.createMultiBody(
         baseMass=0,              # no physics
         baseVisualShapeIndex=obstacle_visual,
-        basePosition=[goal[0]/3, goal[1]/3, 0]  # 1/3 of the way to goal
+        basePosition=[obstacle1_position[0],obstacle1_position[1], 0]  # 1/3 of the way to goal
     )
     obstacle_2 = p.createMultiBody(
         baseMass=0,              # no physics
         baseVisualShapeIndex=obstacle_visual,
-        basePosition=[0, 2*goal[1]/3, 0]  
+        basePosition=[obstacle2_position[0], obstacle2_position[1], 0]  
     )
 
     obstacle_3 = p.createMultiBody(
         baseMass=0,              # no physics
         baseVisualShapeIndex=obstacle_visual,
-        basePosition=[goal[0], 2*goal[1]/3, 0] 
+        basePosition=[obstacle3_position[0],obstacle3_position[1], 0] 
     )
 
     # get initial state from PyBullet
@@ -97,9 +100,9 @@ def main():
 
     # obstacles: (x, y, radius)
     obstacles = [
-        (goal[0]/3, goal[1]/3, obstacle_radius),
-        (0.0, 2*goal[1]/3, obstacle_radius),
-        (goal[0], 2*goal[1]/3, obstacle_radius),
+        (obstacle1_position[0], obstacle1_position[1], obstacle_radius),
+        (obstacle2_position[0], obstacle2_position[1], obstacle_radius),
+        (obstacle3_position[0], obstacle3_position[1], obstacle_radius),
     ]
 
     X_ref, U_ref = ilqr_plan(start_state, goal, obstacles)
@@ -155,7 +158,7 @@ def main():
     p.disconnect()
 
     # show_plots=True to show, False to suppress
-    plot_logs(log, show_plots=True)
+    plot_logs(log, show_plots=False)
 
 if __name__ == "__main__":
     main()
