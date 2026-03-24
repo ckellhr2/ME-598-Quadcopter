@@ -134,7 +134,7 @@ def main():
         ilqr_step_counter = (ilqr_step_counter + 1) % ilqr_dt_steps
 
         # Apply wheel speeds
-        apply_inputs(robotId, omega_l=omega_l, omega_r=omega_r)
+        apply_inputs(robotId, omega_l=omega_l, omega_r=omega_r) #update here to add noise
         log_state(robotId, omega_l, omega_r)
 
         p.stepSimulation()
@@ -155,7 +155,7 @@ def main():
     p.disconnect()
 
     # show_plots=True to show, False to suppress
-    plot_logs(log, show_plots=False)
+    plot_logs(log, show_plots=True)
 
 if __name__ == "__main__":
     main()
