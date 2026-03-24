@@ -68,7 +68,7 @@ def main():
     #place obstacles, 
     obstacle_radius = .75
     obstacle1_position = [2,2]
-    obstacle2_position = [4,4]
+    obstacle2_position = [3,4]
     obstacle3_position = [2,4]
     obstacle_visual = p.createVisualShape(
         shapeType=p.GEOM_SPHERE,
