@@ -6,7 +6,7 @@ def apply_inputs_noisy(
     omega_l,
     omega_r,
     max_torque=2.0,
-    force_std=1,
+    force_std=0.01,
     torque_std=0.05
 ):
     """
