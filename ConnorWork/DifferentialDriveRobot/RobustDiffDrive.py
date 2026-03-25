@@ -6,14 +6,11 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from DronePlots import plot_logs
-from GoalChecker import reached_goal
 from ApplyInputsNoisy import apply_inputs_noisy
-from iLQRController import ilqr_plan
-
+from Robust_iLQRController import robust_ilqr_plan
 
 log = []  # log for states + inputs
-tolerance=0.2 #tolerance for goal checking to see if position has been reached
-
+tolerance=0.05 #tolerance for goal checking to see if position has been reached
 
 def log_state(body_id, omega_l, omega_r):
     pos, orn = p.getBasePositionAndOrientation(body_id)
@@ -51,7 +48,7 @@ def main():
     urdf_path = os.path.join(os.path.dirname(__file__), "diff_drive.urdf")
     robotId = p.loadURDF(urdf_path, startPos, startOrientation)
 
-    goal = [8.0, 3.0]
+    goal = [5.0, 7.0]
 
     # --- Create marker for visualization
     goal_radius = 0.05
@@ -105,24 +102,55 @@ def main():
         (obstacle3_position[0], obstacle3_position[1], obstacle_radius),
     ]
 
-    X_ref, U_ref = ilqr_plan(start_state, goal, obstacles)
-    step_idx = 0
-
     # PyBullet runs at 240 Hz, iLQR at dt = 0.05 → 20 Hz
     sim_dt = 1/240
     ilqr_dt = 0.05
     ilqr_dt_steps = int(ilqr_dt / sim_dt)   # = 12
 
     ilqr_step_counter = 0
+    step_idx = 0
+
+    # --- initial plan ---
+    X_ref, U_ref = robust_ilqr_plan(start_state, goal, obstacles)
 
     for i in range(10000):
 
-        # Stop if we reached the end of the iLQR plan
-        if step_idx >= len(U_ref):
-            print("iLQR horizon finished")
+        # --- get current robot state ---
+        pos, orn = p.getBasePositionAndOrientation(robotId)
+        x_bot, y_bot, _ = pos
+        yaw_bot = p.getEulerFromQuaternion(orn)[2]
+        current_state = np.array([x_bot, y_bot, yaw_bot])
+
+        # --- stopping condition ---
+        dist_to_goal = math.hypot(x_bot - goal[0], y_bot - goal[1])
+        if dist_to_goal < tolerance:
+            omega_l = 0.0
+            omega_r = 0.0
+            apply_inputs_noisy(robotId, omega_l, omega_r)
+            log_state(robotId, omega_l, omega_r)
+            print("Goal reached — stopping.")
             break
 
-        # Only advance iLQR control every 12 PyBullet steps
+        # --- REPLANNING CONDITION ---
+        need_replan = False
+
+        # 1. End of horizon
+        if step_idx >= len(U_ref):
+            need_replan = True
+
+        # 2. Robot drifted too far from reference
+        ref_x, ref_y = X_ref[min(step_idx, len(X_ref)-1), :2]
+        drift = math.hypot(x_bot - ref_x, y_bot - ref_y)
+        if drift > 0.25:   # you can tune this
+            need_replan = True
+
+        if need_replan:
+            print("Replanning...")
+            X_ref, U_ref = robust_ilqr_plan(current_state, goal, obstacles)
+            step_idx = 0
+            ilqr_step_counter = 0
+
+        # --- apply next iLQR control ---
         if ilqr_step_counter == 0:
             v, w = U_ref[step_idx]
             step_idx += 1
@@ -133,27 +161,23 @@ def main():
             omega_r = (v + (L/2)*w) / r
             omega_l = (v - (L/2)*w) / r
 
-        # Increment counter (wrap around every 12 steps)
         ilqr_step_counter = (ilqr_step_counter + 1) % ilqr_dt_steps
 
-        # Apply wheel speeds
-        apply_inputs_noisy(robotId, omega_l=omega_l, omega_r=omega_r) #update here to add noise
+        # --- apply wheel speeds ---
+        apply_inputs_noisy(robotId, omega_l, omega_r)
         log_state(robotId, omega_l, omega_r)
 
         p.stepSimulation()
         time.sleep(sim_dt)
 
-
-        pos, orn = p.getBasePositionAndOrientation(robotId)
-        x_bot, y_bot, z_bot = pos
-
-        # Recenter camera on the robot
+        # --- camera ---
         p.resetDebugVisualizerCamera(
-            cameraDistance=1.0,      # zoom level
-            cameraYaw=45,            # angle around the robot
-            cameraPitch=-30,         # tilt downward
+            cameraDistance=3.0,
+            cameraYaw=45,
+            cameraPitch=-30,
             cameraTargetPosition=[x_bot, y_bot, 0.1]
         )
+
 
     p.disconnect()
 
