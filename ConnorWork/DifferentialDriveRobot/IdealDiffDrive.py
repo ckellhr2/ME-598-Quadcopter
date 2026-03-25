@@ -10,34 +10,59 @@ from ApplyInputsNoisy import apply_inputs_noisy
 from ideal_iLQRController import ilqr_plan
 
 
-log = []  # log for states + inputs
+log = {
+    "t": [],
+    "x": [],
+    "u": [],
+    "cost_per_step": [],
+    "cost_cumulative": 0.0
+}
 tolerance=0.2 #tolerance for goal checking to see if position has been reached
 
-def log_state(body_id, omega_l, omega_r):
-    pos, orn = p.getBasePositionAndOrientation(body_id)
-    lin_vel, ang_vel = p.getBaseVelocity(body_id)
-    roll, pitch, yaw = p.getEulerFromQuaternion(orn)
+def log_actual_cost(
+    log, x, u, t,
+    goal, obstacles,terminal=False,
+    Q=np.array([70.0, 70.0]), R=np.array([1, 1]), Qf=np.array([2000.0, 2000.0]),
+    obs_weight=1000.0,
+    dt=0.05,
+):
+    #Logs actual state, control, and computes the SAME cost used by the planner.
 
-    entry = {
-        "x": pos[0],
-        "y": pos[1],
-        "z": pos[2],
-        "roll": roll,
-        "pitch": pitch,
-        "yaw": yaw,
-        "vx": lin_vel[0],
-        "vy": lin_vel[1],
-        "vz": lin_vel[2],
-        "wx": ang_vel[0],
-        "wy": ang_vel[1],
-        "wz": ang_vel[2],
-        "omega_l": omega_l,
-        "omega_r": omega_r,
-    }
+    # --- Log trajectory ---
+    log["t"].append(t)
+    log["x"].append(x.copy())
+    log["u"].append(u.copy())
 
-    log.append(entry)
+    # --- Stage cost (same as cost_function) ---
+    dx = x[0] - goal[0]
+    dy = x[1] - goal[1]
 
-def main():
+    state_cost = Q[0] * dx * dx + Q[1] * dy * dy
+    control_cost = R[0] * u[0] * u[0] + R[1] * u[1] * u[1]
+
+    # --- Obstacle cost (identical to planner) ---
+    obs_cost = 0.0
+    for (ox, oy, orad) in obstacles:
+        dist = math.hypot(x[0] - ox, x[1] - oy)
+        safe_dist = orad + 0.75
+        if dist < safe_dist:
+            obs_cost += obs_weight * (safe_dist - dist)**2
+
+    # --- Terminal cost (only at final step) ---
+    if terminal:
+        term_cost = Qf[0] * dx * dx + Qf[1] * dy * dy
+    else:
+        term_cost = 0.0
+
+    # --- Total instantaneous cost ---
+    step_cost = state_cost + control_cost + obs_cost + term_cost
+    log["cost_per_step"].append(step_cost)
+
+    # --- Accumulate cost over time ---
+    log["cost_cumulative"] += step_cost * dt
+
+def main(goal = [10.0, 15.0],obstacle1_position = [2,2],
+         obstacle2_position = [3,1],obstacle3_position = [8,1]):
     physicsClient = p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
@@ -49,7 +74,7 @@ def main():
     urdf_path = os.path.join(os.path.dirname(__file__), "diff_drive.urdf")
     robotId = p.loadURDF(urdf_path, startPos, startOrientation)
 
-    goal = [5.0, 5.0]
+    
 
     # --- Create marker for visualization
     goal_radius = 0.05
@@ -103,6 +128,8 @@ def main():
         (obstacle3_position[0], obstacle3_position[1], obstacle_radius),
     ]
 
+    #Q matrix values: Real Q lives in controller but values needed for cost logging
+
     # PyBullet runs at 240 Hz, iLQR at dt = 0.05 → 20 Hz
     sim_dt = 1/240
     ilqr_dt = 0.05
@@ -113,7 +140,8 @@ def main():
 
     # --- initial plan ---
     X_ref, U_ref = ilqr_plan(start_state, goal, obstacles)
-
+    terminal = False #used to tell logger that this step is the last if true for terminal cost
+    
     for i in range(10000):
 
         # --- get current robot state ---
@@ -125,16 +153,28 @@ def main():
         # --- stopping condition ---
         dist_to_goal = math.hypot(x_bot - goal[0], y_bot - goal[1])
         if dist_to_goal < tolerance:
+            terminal = True
             omega_l = 0.0
             omega_r = 0.0
             apply_inputs_noisy(robotId, omega_l, omega_r)
-            log_state(robotId, omega_l, omega_r)
+            #get final state for cost logging
+            pos, orn = p.getBasePositionAndOrientation(robotId)
+            x_bot, y_bot, _ = pos
+            yaw_bot = p.getEulerFromQuaternion(orn)[2]
+            x = np.array([x_bot, y_bot, yaw_bot])
+            #know it is final step so inputs forced to 0
+            u=[0,0]
+            t=i*ilqr_dt
+            log_actual_cost(log, x, u, t,goal, obstacles, terminal,
+                            Q=np.array([70.0, 70.0]), R=np.array([1, 1]), Qf=np.array([2000.0, 2000.0]),
+                            obs_weight=1000.0,dt=0.05,)
             print("Goal reached — stopping.")
             break
 
-        # --- REPLANNING CONDITION ---
-        need_replan = False
-
+        # setting up conditions
+        need_replan = False #used to call planner again if true
+       
+        
         # 1. End of horizon
         if step_idx >= len(U_ref):
             need_replan = True
@@ -166,7 +206,25 @@ def main():
 
         # --- apply wheel speeds ---
         apply_inputs_noisy(robotId, omega_l, omega_r)
-        log_state(robotId, omega_l, omega_r)
+
+        # --- get actual state after applying inputs ---
+        pos, orn = p.getBasePositionAndOrientation(robotId)
+        x_bot, y_bot, _ = pos
+        yaw_bot = p.getEulerFromQuaternion(orn)[2]
+        x = np.array([x_bot, y_bot, yaw_bot])
+
+        # --- actual control used by planner ---
+        u = np.array([v, w])
+
+        # --- log cost (normal step, no terminal cost) ---
+        t = i * ilqr_dt
+        log_actual_cost(log, x, u, t,
+            goal, obstacles, terminal,
+            Q=np.array([70.0, 70.0]),
+            R=np.array([1, 1]),
+            Qf=np.array([2000.0, 2000.0]),
+            obs_weight=1000.0,
+            dt=0.05)
 
         p.stepSimulation()
         time.sleep(sim_dt)
@@ -184,6 +242,12 @@ def main():
 
     # show_plots=True to show, False to suppress
     plot_logs(log, show_plots=False)
+    return log["cost_cumulative"]
 
 if __name__ == "__main__":
-    main()
+    goal = [1,1]
+    obstacle1_position = [2,2]
+    obstacle2_position = [3,1]
+    obstacle3_position = [8,1]
+    total_cost = main(goal,obstacle1_position,obstacle2_position,obstacle3_position)
+    print("Total cost:", total_cost)
