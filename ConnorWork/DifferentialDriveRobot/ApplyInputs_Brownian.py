@@ -7,8 +7,8 @@ def apply_inputs_Brownian(
     omega_r,
     dt,
     max_torque=2.0,
-    force_std=6,
-    torque_std=12
+    force_std=1,
+    torque_std=5
 ):
     """
     Differential-drive wheel control + Brownian motion disturbances.
