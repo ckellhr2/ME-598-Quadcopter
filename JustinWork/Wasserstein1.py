@@ -1,6 +1,11 @@
 # Made with 0 AI
 
 # Make sure to either move this file into the directory of the sample data or include the proper path to the data when running this program
+# ALSO: Set the save directory and filename for the Wasserstein below v
+
+saveto = "JustinWork/Wasserstein1_100runs.npy"
+
+
 import numpy as np
 import scipy.stats as stat  # 1-moment Wasserstein distance function comes from this package
 
@@ -33,7 +38,7 @@ w1 = np.zeros(n_timesteps)                                      # This will stor
 
 
 # WASSERSTEIN DISTANCE CALCULATION (takes a few min to calculate)
-for t_step in range(100):               # Iterate over each timestep
+for t_step in range(n_timesteps):       # Iterate over each timestep
     for n_trial in range(n_trials):     # Iterate over each trial
         # Calculate the state values (x,y) from each trial corresponding to the current timestep
         # idealstates and nonidealstates are 3d matrices
@@ -42,13 +47,13 @@ for t_step in range(100):               # Iterate over each timestep
         idealstates[n_trial,:,t_step] = ideal_x[n_trial*n_timesteps + t_step, :n_states]            # Extract states from ideal trials at a certain timestep
         nonidealstates[n_trial,:,t_step] = nonideal_x[n_trial*n_timesteps + t_step, :n_states]      # Extract states from nonideal trial at a certain timestep
     
-    w1[t_step] = stat.wasserstein_distance_nd(idealstates[:,:,t_step],nonidealstates[:,:,t_step])
+    w1[t_step] = stat.wasserstein_distance_nd(idealstates[:,:,t_step],nonidealstates[:,:,t_step])   # Insert whatever Wasserstein function is preferred
 
 
 
-packitup = {'w1': w1,                       # Store all important data under one variable for convenience
+packitup = {'w1': w1,                           # Store all important data under one variable for convenience
+            't': times,
             'ideal': idealstates,
             'nonideal': nonidealstates}
 
-np.save("Wasserstein1_100runs.npy", np.array([packitup]), allow_pickle=True)
-lolvar = 6
+np.save(saveto, packitup, allow_pickle=True)    # Save data to previously specified location

@@ -8,14 +8,31 @@ import numpy as np
 #for lol in range(10):
 #    print(lol)
     
+packitup = []
 
 a = np.array([[2, 3], [4, 5]])
 b = np.array([[2, 3, 4], [4, 5, 6]])
 
-np.save("Test.npy", np.array([{'a': a, 'b': b}]), allow_pickle=True)
+packitup.append({
+    'a': a,
+    'b': b
+})
+
+c = np.array([[1, 1], [1, 1]])
+d = np.array([[2, 2, 2], [2, 2, 2]])
+
+packitup.append({
+    'c': c,
+    'd': d
+})
+
+np.save("Test.npy", {
+    'a': a,
+    'b': b
+}, allow_pickle=True)
 
 dictus = np.load("Test.npy", allow_pickle=True)
-a_new = dictus[0]['a']
-b_new = dictus[0]['b']
+#a_new = dictus[0]['a']
+#b_new = dictus[0]['b']
 
 lolvar = 6
