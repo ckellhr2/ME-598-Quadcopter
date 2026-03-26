@@ -9,6 +9,7 @@ from DronePlots import plot_logs
 from ApplyInputs_Ideal import apply_inputs
 from ideal_iLQRController import ilqr_plan
 
+gui=False
 
 log = {
     "x": [],
@@ -24,7 +25,10 @@ def log_states_and_time(log, x, t,):
 
 def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
          obstacle2_position = [3,1],obstacle3_position = [1,3]):
-    physicsClient = p.connect(p.GUI)
+    if gui:
+        physicsClient = p.connect(p.GUI)
+    else:
+        physicsClient = p.connect(p.DIRECT)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, -9.81)
 
@@ -116,13 +120,8 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
 
         need_replan = False #used to call planner again if true
         # 1. End of horizon
-        if step_idx >= 67:
+        if step_idx >= 70:
             need_replan = True
-        # 2. Robot drifted too far from reference
-        #ref_x, ref_y = X_ref[min(step_idx, len(X_ref)-1), :2]
-        #drift = math.hypot(x_bot - ref_x, y_bot - ref_y)
-        #if drift > 0.5:   # you can tune this
-        #    need_replan = True
 
         if need_replan:
             print("Replanning...")
@@ -168,13 +167,9 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
 
 
     p.disconnect()
-
-    # show_plots=True to show, False to suppress
-    plot_logs(log, show_plots=False)
-    state = log["x"][-1]
-    return state
+    return log
 
 if __name__ == "__main__":
     startpos=[-2,-2,0]
-    t_end = main(startpos)
-    print("State:", t_end)
+    log = main(startpos)
+    print("Log:", log)
