@@ -177,8 +177,7 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
 
     # show_plots=True to show, False to suppress
     plot_logs(log, show_plots=False)
-    state = log["t"][-1]
-    return state
+    return log
 
 if __name__ == "__main__":
     startpos=[-1,0,0]

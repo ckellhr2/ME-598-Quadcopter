@@ -1,36 +1,49 @@
 import numpy as np
-from NonIdealDiffDrive import main as run_simulation   # rename for clarity
+from NonIdealDiffDrive import main as run_nonIdeal   # rename for clarity
+from IdealDiffDrive import main as run_Ideal 
 
-def run_experiments(num_runs=100):
-    all_runs = []
-
+def run_experiments(num_runs=5):
+    all_NonIdealruns = []
+    all_Idealruns = []
     for i in range(num_runs):
         print(f"=== Running simulation {i+1}/{num_runs} ===")
 
-        # Sample initial condition
-        x0 = np.random.normal(-1.0, 1.0)
-        y0 = np.random.normal(-1.0, 1.0)
-        startpos = [x0, y0, 0.0]
+        # Sample initial conditions for non ideal
+        non_x0 = np.random.normal(2.0, 1.0)
+        non_y0 = np.random.normal(-2.0, 1.0)
+        non_startpos = [non_x0, non_y0, 0.0]
 
+        # Sample initial for ideal
+        ideal_x0 = np.random.normal(0.0, 1.0)
+        ideal_y0 = np.random.normal(0.0, 1.0)
+        ideal_startpos = [ideal_x0, ideal_y0, 0.0]
+        
         # Run one simulation
-        log = run_simulation(startpos=startpos)
+        nonIdeal_log = run_nonIdeal(non_startpos)
+        Ideal_log = run_Ideal(ideal_startpos)
 
         # Store this run's data cleanly
-        run_data = {
-            "x": np.array(log["x"]),      # shape (T, 3)
-            "t": np.array(log["t"]),      # shape (T,)
-            "startpos": np.array(startpos)
+        nonIdeal_run_data = {
+            "x": np.array(Ideal_log["x"]),      # shape (T, 3)
+            "t": np.array(Ideal_log["t"]),      # shape (T,)
+            "startpos": np.array(non_startpos)
         }
 
-        all_runs.append(run_data)
+        Ideal_run_data = {
+            "x": np.array(nonIdeal_log["x"]),      # shape (T, 3)
+            "t": np.array(nonIdeal_log["t"]),      # shape (T,)
+            "startpos": np.array(non_startpos)
+        }
 
-    return all_runs
+        all_NonIdealruns.append(nonIdeal_run_data)
+        all_Idealruns.append(Ideal_run_data)
+    return all_NonIdealruns, all_Idealruns
 
 
 if __name__ == "__main__":
-    results = run_experiments(100)
+    NonIdealresults,Idealresults = run_experiments(100)
 
     # Save to disk
-    np.save("diffdrive_100runs.npy", results, allow_pickle=True)
-
-    print("Saved 100-run dataset to diffdrive_100runs.npy")
+    np.save("NonIdeal_100runs.npy", NonIdealresults, allow_pickle=True)
+    np.save("Ideal_100runs.npy", Idealresults, allow_pickle=True)
+    print("Saved 100-run datasets")
