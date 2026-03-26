@@ -24,16 +24,16 @@ def cost_function(x, u, goal, obstacles, Q, R, obs_weight):
     obs_cost = 0.0
     for (ox, oy, orad) in obstacles:
         dist = math.hypot(x[0] - ox, x[1] - oy)
-        safe_dist = orad + 0.75
+        safe_dist = orad + 0.5
         if dist < safe_dist:
             obs_cost += obs_weight * (safe_dist - dist)**2
 
     return state_cost + control_cost + obs_cost
 
 def ilqr_plan(start_state, goal, obstacles,
-              N=400, dt=0.05,
+              N=200, dt=0.05,
               Q=np.array([70.0, 70.0]),
-              R=np.array([1, 1]),
+              R=np.array([0.2, 0.2]),
               Qf=np.array([2000.0, 2000.0]),
               obs_weight=1000.0,
               max_iters=50):
@@ -132,7 +132,7 @@ def ilqr_plan(start_state, goal, obstacles,
             # obstacle gradient
             for (ox, oy, orad) in obstacles:
                 dist = math.hypot(xk[0] - ox, xk[1] - oy)
-                safe_dist = orad + 0.75
+                safe_dist = orad + 0.5
                 if dist < safe_dist and dist > 1e-4:
                     dcost = 2*obs_weight*(safe_dist - dist)*(-1.0/dist)
                     lx[0] += dcost * (xk[0] - ox)
