@@ -6,7 +6,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from DronePlots import plot_logs
-from ApplyInputs_Ideal import apply_inputs
+from ApplyInputs_Brownian import apply_inputs_Brownian
 from ideal_iLQRController import ilqr_plan
 
 
@@ -79,7 +79,6 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
         basePosition=[obstacle3_position[0],obstacle3_position[1], 0] 
     )
 
-
     # get initial state from PyBullet
     pos, orn = p.getBasePositionAndOrientation(robotId)
     x0, y0, _ = pos
@@ -116,13 +115,13 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
 
         need_replan = False #used to call planner again if true
         # 1. End of horizon
-        if step_idx >= 67:
+        if step_idx >= 67: #plan to run iLQR again halfway through sequnce
             need_replan = True
         # 2. Robot drifted too far from reference
         #ref_x, ref_y = X_ref[min(step_idx, len(X_ref)-1), :2]
         #drift = math.hypot(x_bot - ref_x, y_bot - ref_y)
         #if drift > 0.5:   # you can tune this
-        #    need_replan = True
+        #   need_replan = True
 
         if need_replan:
             print("Replanning...")
@@ -136,15 +135,22 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
             step_idx += 1
 
             # Convert (v, w) → wheel speeds
-            r = 0.05
-            L = 0.20
+            # Sample uncertain parameters once per simulation
+            r_mean = 0.05 #mean of ideal parameter
+            L_mean = 0.20
+
+            r_std = 0.002      # 2 mm std dev
+            L_std = 0.005      # 5 mm std dev
+
+            r = np.random.normal(r_mean, r_std)
+            L = np.random.normal(L_mean, L_std)
             omega_r = (v + (L/2)*w) / r
             omega_l = (v - (L/2)*w) / r
 
         ilqr_step_counter = (ilqr_step_counter + 1) % ilqr_dt_steps
 
         # --- apply wheel speeds ---
-        apply_inputs(robotId, omega_l, omega_r)
+        apply_inputs_Brownian(robotId, omega_l, omega_r,ilqr_dt)
 
         # --- get actual state after applying inputs ---
         pos, orn = p.getBasePositionAndOrientation(robotId)
@@ -152,7 +158,10 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
         yaw_bot = p.getEulerFromQuaternion(orn)[2]
         x = np.array([x_bot, y_bot, yaw_bot])
 
-        # --- log state and time for trajectory
+        # --- actual control used by planner ---
+        u = np.array([v, w])
+
+        # --- log cost (normal step, no terminal cost) ---
         t = i * sim_dt
         log_states_and_time(log, x, t,)
         p.stepSimulation()
@@ -175,6 +184,6 @@ def main(startpos=[-1,0,0], goal = [4, 4],obstacle1_position = [2,2],
     return state
 
 if __name__ == "__main__":
-    startpos=[-2,-2,0]
+    startpos=[-1,0,0]
     t_end = main(startpos)
     print("State:", t_end)

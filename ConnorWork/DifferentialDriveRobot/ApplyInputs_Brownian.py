@@ -1,16 +1,17 @@
 import pybullet as p
 import numpy as np
 
-def apply_inputs_noisy(
+def apply_inputs_Brownian(
     robot_id,
     omega_l,
     omega_r,
+    dt,
     max_torque=2.0,
-    force_std=0.01,
-    torque_std=0.05
+    force_std=6,
+    torque_std=12
 ):
     """
-    Differential-drive wheel control + Gaussian noise disturbances.
+    Differential-drive wheel control + Brownian motion disturbances.
     Noise is applied in the ROBOT FRAME:
         - force in x, y
         - torque about z
@@ -35,19 +36,18 @@ def apply_inputs_noisy(
         force=max_torque
     )
 
-    # --- Gaussian noise in robot frame ---
-    fx_r = np.random.normal(0, force_std)
-    fy_r = np.random.normal(0, force_std)
-    tz_r = np.random.normal(0, torque_std)
+    # --- Brownian motion noise (scaled by sqrt(dt)) ---
+    fx_r = np.random.normal(0, force_std * np.sqrt(dt))
+    fy_r = np.random.normal(0, force_std * np.sqrt(dt))
+    tz_r = np.random.normal(0, torque_std * np.sqrt(dt))
 
     # Convert robot-frame force to world frame
     pos, orn = p.getBasePositionAndOrientation(robot_id)
     rot_mat = p.getMatrixFromQuaternion(orn)
     R = np.array(rot_mat).reshape(3, 3)
 
-    # Robot-frame force vector
-    f_robot = np.array([fx_r, fy_r, 0.0])
-    f_world = R @ f_robot
+    f_world = R @ np.array([fx_r, fy_r, 0.0])
+    t_world = R @ np.array([0.0, 0.0, tz_r])
 
     # Apply force at COM
     p.applyExternalForce(
@@ -58,9 +58,7 @@ def apply_inputs_noisy(
         flags=p.WORLD_FRAME
     )
 
-    t_robot = np.array([0.0, 0.0, tz_r])
-    t_world = R @ t_robot
-
+    # Apply torque
     p.applyExternalTorque(
         objectUniqueId=robot_id,
         linkIndex=-1,
