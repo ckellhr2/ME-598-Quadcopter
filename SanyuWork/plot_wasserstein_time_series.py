@@ -4,17 +4,24 @@ import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 
+<<<<<<< HEAD
 TITLE_FONTSIZE = 18
 LABEL_FONTSIZE = 16
 TICK_FONTSIZE = 13
 LEGEND_FONTSIZE = 13
 
+=======
+>>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
 
 def main():
     parser = argparse.ArgumentParser(description="Plot Wasserstein-1 time series from CSV")
     parser.add_argument(
         "--input-csv",
+<<<<<<< HEAD
         default=None,
+=======
+        default="wasserstein_time_series.csv",
+>>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
         help="Path to the Wasserstein time series CSV",
     )
     parser.add_argument(
@@ -36,6 +43,7 @@ def main():
     if unknown:
         print(f"Warning: ignoring unknown command-line args: {unknown}")
 
+<<<<<<< HEAD
     output_dir = os.path.abspath(args.output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -66,6 +74,16 @@ def main():
         input_csv_paths = [os.path.abspath(args.input_csv)]
 
     total_plots = 0
+=======
+    input_csv_path = os.path.abspath(args.input_csv)
+    output_dir = os.path.abspath(args.output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+
+    if not os.path.exists(input_csv_path):
+        raise FileNotFoundError(f"Wasserstein CSV file not found: {input_csv_path}")
+
+    df = pd.read_csv(input_csv_path)
+>>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
     required_columns = {
         "scenario",
         "time_step",
@@ -75,6 +93,7 @@ def main():
         "wasserstein_z",
         "wasserstein_xyz_mean",
     }
+<<<<<<< HEAD
 
     for input_csv_path in input_csv_paths:
         if not os.path.exists(input_csv_path):
@@ -132,6 +151,60 @@ def main():
             total_plots += 1
 
     print(f"Generated {total_plots} Wasserstein plot(s)")
+=======
+    if not required_columns.issubset(df.columns):
+        raise ValueError("Input CSV missing one or more required Wasserstein columns")
+
+    scenarios = sorted(df["scenario"].unique())
+    if args.scenario:
+        scenarios = [scenario for scenario in scenarios if scenario == args.scenario]
+        if not scenarios:
+            raise ValueError(f"Scenario '{args.scenario}' not found in Wasserstein CSV")
+
+    curve_specs = [
+        ("wasserstein_x", "X", "blue"),
+        ("wasserstein_y", "Y", "red"),
+        ("wasserstein_z", "Z", "gold"),
+    ]
+
+    for scenario in scenarios:
+        scenario_df = df[df["scenario"] == scenario].sort_values("time_sec")
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        for column, label, color in curve_specs:
+            ax.plot(
+                scenario_df["time_sec"],
+                scenario_df[column],
+                label=label,
+                color=color,
+                linewidth=2.0,
+            )
+
+        if args.show_mean:
+            ax.plot(
+                scenario_df["time_sec"],
+                scenario_df["wasserstein_xyz_mean"],
+                label="Mean",
+                color="black",
+                linewidth=2.2,
+                linestyle="--",
+            )
+
+        ax.set_title(f"{scenario.replace('_', ' ').title()}: Wasserstein-1 vs Time")
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Wasserstein-1 Distance")
+        ax.grid(True, linestyle="--", linewidth=0.4, alpha=0.7)
+        ax.legend()
+
+        output_path = os.path.join(output_dir, f"wasserstein_{scenario}.png")
+        fig.tight_layout()
+        fig.savefig(output_path, dpi=150)
+        plt.close(fig)
+        print(f"Saved Wasserstein plot for {scenario} to: {output_path}")
+
+    print(f"Generated {len(scenarios)} Wasserstein plot(s)")
+>>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
 
 
 if __name__ == "__main__":
