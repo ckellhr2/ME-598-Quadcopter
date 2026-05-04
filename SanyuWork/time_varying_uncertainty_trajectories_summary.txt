@@ -1,0 +1,9 @@
+Time-varying uncertainty batch checkpoint.
+Trials requested: 100
+Stored rows: 6560
+Completed trials: 50
+Goal position: [1.3, 2.1, 1.4]
+Max time step saved: 2856
+Scenarios present: 2
+CSV saved to: c:\Users\pksan\Downloads\ME598Project\ME-598-Quadcopter\SanyuWork\time_varying_uncertainty_trajectories.csv
+Pickle saved to: c:\Users\pksan\Downloads\ME598Project\ME-598-Quadcopter\SanyuWork\time_varying_uncertainty_trajectories.pkl
