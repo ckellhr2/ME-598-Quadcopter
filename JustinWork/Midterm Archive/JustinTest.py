@@ -48,6 +48,27 @@ dictus = np.load("Test.npy", allow_pickle=True)
 #b_new = dictus[0]['b']
 """
 
-dictus = np.load("MidtermPresentationData_Ideal.npy", allow_pickle=True)
+dictus = np.load("NonIdeal_3runs.npy", allow_pickle=True)
+
+"""
+str1 = "Hello "
+str2 = "World!"
+num1 = 2001
+num2 = 5
+
+print(str1+str2+" "+str(num1)+f" is {num2} years before {num1+num2}")
+"""
+"""
+def run_experiments(num_runs=5):
+    all_NonIdealruns = []
+    all_Idealruns = []
+    for i in range(num_runs):
+        print(f"=== Running simulation {i+1}/{num_runs} ===")
+        all_NonIdealruns.append(i)
+        all_Idealruns.append(i+1)
+    return all_NonIdealruns, all_Idealruns
+
+nIdl, Idl = run_experiments(5)
+"""
 
 lolvar = 6
