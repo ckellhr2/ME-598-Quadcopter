@@ -28,6 +28,8 @@ def empirical_wasserstein_1d(samples_a, samples_b):
 
 
 <<<<<<< HEAD
+=======
+<<<<<<< HEAD
 def compute_wasserstein_rows(uncertain_df, nominal_df, scenario_filter=None):
     required_columns = {"trial", "time_step", "time_sec", "x", "y", "z"}
     if "scenario" not in uncertain_df.columns:
@@ -49,6 +51,7 @@ def compute_wasserstein_rows(uncertain_df, nominal_df, scenario_filter=None):
     for scenario in scenarios:
         scenario_df = uncertain_df[uncertain_df["scenario"] == scenario]
 =======
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
 def main():
     parser = argparse.ArgumentParser(
         description="Compute per-time-step empirical Wasserstein-1 distances between nominal and uncertain trajectories"
@@ -99,7 +102,10 @@ def main():
 
     for scenario in scenarios:
         scenario_df = epistemic_df[epistemic_df["scenario"] == scenario]
+<<<<<<< HEAD
+=======
 >>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
         common_time_steps = sorted(nominal_time_steps & set(scenario_df["time_step"].unique()))
 
         for time_step in common_time_steps:
@@ -125,6 +131,11 @@ def main():
             results.append(row)
 
 <<<<<<< HEAD
+    results_df = pd.DataFrame(results).sort_values(["scenario", "time_step"]).reset_index(drop=True)
+    results_df.to_csv(output_csv_path, index=False)
+
+=======
+<<<<<<< HEAD
     return pd.DataFrame(results).sort_values(["scenario", "time_step"]).reset_index(drop=True)
 
 
@@ -138,11 +149,14 @@ def save_wasserstein_csv(uncertain_csv_path, nominal_csv_path, output_csv_path, 
     results_df.to_csv(output_csv_path, index=False)
 
 >>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
     print(f"Saved Wasserstein time series to: {output_csv_path}")
     print(f"Scenarios: {results_df['scenario'].nunique() if not results_df.empty else 0}")
     print(f"Rows: {len(results_df)}")
 
 
+<<<<<<< HEAD
+=======
 <<<<<<< HEAD
 def main():
     parser = argparse.ArgumentParser(
@@ -218,5 +232,6 @@ def main():
 
 =======
 >>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
 if __name__ == "__main__":
     main()

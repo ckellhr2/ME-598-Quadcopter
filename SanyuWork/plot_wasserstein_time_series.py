@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 <<<<<<< HEAD
+=======
+<<<<<<< HEAD
 TITLE_FONTSIZE = 18
 LABEL_FONTSIZE = 16
 TICK_FONTSIZE = 13
@@ -12,16 +14,21 @@ LEGEND_FONTSIZE = 13
 
 =======
 >>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
 
 def main():
     parser = argparse.ArgumentParser(description="Plot Wasserstein-1 time series from CSV")
     parser.add_argument(
         "--input-csv",
 <<<<<<< HEAD
+        default="wasserstein_time_series.csv",
+=======
+<<<<<<< HEAD
         default=None,
 =======
         default="wasserstein_time_series.csv",
 >>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
         help="Path to the Wasserstein time series CSV",
     )
     parser.add_argument(
@@ -43,6 +50,8 @@ def main():
     if unknown:
         print(f"Warning: ignoring unknown command-line args: {unknown}")
 
+<<<<<<< HEAD
+=======
 <<<<<<< HEAD
     output_dir = os.path.abspath(args.output_dir)
     os.makedirs(output_dir, exist_ok=True)
@@ -75,6 +84,7 @@ def main():
 
     total_plots = 0
 =======
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
     input_csv_path = os.path.abspath(args.input_csv)
     output_dir = os.path.abspath(args.output_dir)
     os.makedirs(output_dir, exist_ok=True)
@@ -83,7 +93,10 @@ def main():
         raise FileNotFoundError(f"Wasserstein CSV file not found: {input_csv_path}")
 
     df = pd.read_csv(input_csv_path)
+<<<<<<< HEAD
+=======
 >>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
     required_columns = {
         "scenario",
         "time_step",
@@ -93,6 +106,8 @@ def main():
         "wasserstein_z",
         "wasserstein_xyz_mean",
     }
+<<<<<<< HEAD
+=======
 <<<<<<< HEAD
 
     for input_csv_path in input_csv_paths:
@@ -152,6 +167,7 @@ def main():
 
     print(f"Generated {total_plots} Wasserstein plot(s)")
 =======
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
     if not required_columns.issubset(df.columns):
         raise ValueError("Input CSV missing one or more required Wasserstein columns")
 
@@ -204,7 +220,10 @@ def main():
         print(f"Saved Wasserstein plot for {scenario} to: {output_path}")
 
     print(f"Generated {len(scenarios)} Wasserstein plot(s)")
+<<<<<<< HEAD
+=======
 >>>>>>> 8db271904d96e850fb7a44f8d5bd61e315fd150b
+>>>>>>> 2a05eebd2a3f3593b48c6bdea5f7e21e5df1c138
 
 
 if __name__ == "__main__":

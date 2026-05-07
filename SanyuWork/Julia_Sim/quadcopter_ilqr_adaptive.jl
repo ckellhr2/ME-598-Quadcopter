@@ -24,10 +24,10 @@ const ILQR_REG = 1e-6
 
 function make_cost_matrices()
     Q = Diagonal([
-        8.0, 8.0, 80.0,      # position
-        1.0, 1.0, 25.0,      # velocity
-        50.0, 50.0, 20.0,    # angles
-        5.0, 5.0, 8.0        # angular rates
+        180.0, 180.0, 80.0,    # position
+        35.0, 35.0, 25.0,      # velocity
+        35.0, 35.0, 20.0,      # angles
+        8.0, 8.0, 8.0          # angular rates
     ])
     R = 0.05I(NU_QUAD)
     Qf = 30.0 * Q
@@ -227,7 +227,8 @@ function quadrotor_scaled_plant_uncertainty(t, x, dp)
 end
 
 function setup_system(; Ntraj=2, t_final=1.0, dt=1e-2, save_stride=5,
-                      ilqr_horizon=30, ilqr_max_iter=3)
+                      ilqr_horizon=120, ilqr_max_iter=5,
+                      brownian_sigma=0.12, aleatoric_sigma=0.18)
     tspan = (0.0, t_final)
     saveat = save_stride * dt
     simulation_parameters = sim_params(tspan, dt, Ntraj, saveat)
@@ -270,11 +271,25 @@ function setup_system(; Ntraj=2, t_final=1.0, dt=1e-2, save_stride=5,
     g(t, x, dp) = dp.B_nominal
     g_perp(t, x, dp) = Matrix{Float64}(I, n, n)[:, [1, 2, 3, 4, 5, 7, 8, 9]]
 
-    p(t, x, dp) = vcat(zeros(5, d), 0.01I(d), zeros(3, d))
+    brownian_diffusion = zeros(n, d)
+    brownian_diffusion[4, 1] = brownian_sigma
+    brownian_diffusion[5, 2] = brownian_sigma
+    brownian_diffusion[6, 3] = 0.5 * brownian_sigma
+    brownian_diffusion[12, 4] = 0.25 * brownian_sigma
+
+    p(t, x, dp) = brownian_diffusion
     nominal_components = nominal_vector_fields(f, g, g_perp, p, dp)
 
-    Lambda_mu(t, x, dp) = quadrotor_scaled_plant_uncertainty(t, x, dp)
-    Lambda_sigma(t, x, dp) = vcat(zeros(5, d), 0.005I(d), zeros(3, d))
+    Lambda_mu(t, x, dp) = zeros(n)
+    aleatoric_diffusion = zeros(n, d)
+    aleatoric_diffusion[4, 1] = aleatoric_sigma
+    aleatoric_diffusion[5, 2] = aleatoric_sigma
+    aleatoric_diffusion[6, 3] = 0.5 * aleatoric_sigma
+    aleatoric_diffusion[10, 1] = 0.2 * aleatoric_sigma
+    aleatoric_diffusion[11, 2] = 0.2 * aleatoric_sigma
+    aleatoric_diffusion[12, 4] = 0.25 * aleatoric_sigma
+
+    Lambda_sigma(t, x, dp) = aleatoric_diffusion
     uncertain_components = uncertain_vector_fields(Lambda_mu, Lambda_sigma)
 
     nominal_mu = zeros(n)
@@ -303,10 +318,22 @@ function setup_system(; Ntraj=2, t_final=1.0, dt=1e-2, save_stride=5,
     )
 end
 
+function _run_simulations_maybe_quiet(setup; max_GPUs, systems, quiet)
+    quiet || return run_simulations(setup; max_GPUs=max_GPUs, systems=systems)
+
+    redirect_stdout(devnull) do
+        redirect_stderr(devnull) do
+            return run_simulations(setup; max_GPUs=max_GPUs, systems=systems)
+        end
+    end
+end
+
 function main(; Ntraj=2, max_GPUs=0, systems=[:nominal_sys, :true_sys, :L1_sys],
               t_final=1.0, dt=1e-2, save_stride=5,
-              ilqr_horizon=30, ilqr_max_iter=3)
-    @info "Warmup run for JIT compilation"
+              ilqr_horizon=120, ilqr_max_iter=5,
+              brownian_sigma=0.12, aleatoric_sigma=0.18,
+              quiet=true)
+    quiet || @info "Warmup run for JIT compilation"
     warmup_setup = setup_system(;
         Ntraj=1,
         t_final=min(t_final, 0.1),
@@ -314,10 +341,12 @@ function main(; Ntraj=2, max_GPUs=0, systems=[:nominal_sys, :true_sys, :L1_sys],
         save_stride=save_stride,
         ilqr_horizon=ilqr_horizon,
         ilqr_max_iter=ilqr_max_iter,
+        brownian_sigma=brownian_sigma,
+        aleatoric_sigma=aleatoric_sigma,
     )
-    run_simulations(warmup_setup; max_GPUs=max_GPUs, systems=systems);
+    _run_simulations_maybe_quiet(warmup_setup; max_GPUs=max_GPUs, systems=systems, quiet=quiet);
 
-    @info "Complete run" Ntraj=Ntraj t_final=t_final dt=dt ilqr_horizon=ilqr_horizon ilqr_max_iter=ilqr_max_iter
+    quiet || @info "Complete run" Ntraj=Ntraj t_final=t_final dt=dt ilqr_horizon=ilqr_horizon ilqr_max_iter=ilqr_max_iter
     setup = setup_system(;
         Ntraj=Ntraj,
         t_final=t_final,
@@ -325,14 +354,18 @@ function main(; Ntraj=2, max_GPUs=0, systems=[:nominal_sys, :true_sys, :L1_sys],
         save_stride=save_stride,
         ilqr_horizon=ilqr_horizon,
         ilqr_max_iter=ilqr_max_iter,
+        brownian_sigma=brownian_sigma,
+        aleatoric_sigma=aleatoric_sigma,
     )
-    solutions = run_simulations(setup; max_GPUs=max_GPUs, systems=systems)
+    solutions = _run_simulations_maybe_quiet(setup; max_GPUs=max_GPUs, systems=systems, quiet=quiet)
     return setup, solutions
 end
 
 function run_long_ensemble(; Ntraj=1000, t_final=5.0, max_GPUs=0,
                            dt=2e-2, save_stride=5,
-                           ilqr_horizon=20, ilqr_max_iter=2)
+                           ilqr_horizon=120, ilqr_max_iter=5,
+                           brownian_sigma=0.12, aleatoric_sigma=0.18,
+                           quiet=true)
     setup, solutions = main(;
         Ntraj=Ntraj,
         max_GPUs=max_GPUs,
@@ -341,6 +374,51 @@ function run_long_ensemble(; Ntraj=1000, t_final=5.0, max_GPUs=0,
         save_stride=save_stride,
         ilqr_horizon=ilqr_horizon,
         ilqr_max_iter=ilqr_max_iter,
+        brownian_sigma=brownian_sigma,
+        aleatoric_sigma=aleatoric_sigma,
+        quiet=quiet,
+    )
+    log_state_results(setup, solutions)
+    return generate_state_plots()
+end
+
+function run_nominal_ensemble_and_plot(; Ntraj=50, t_final=10.0, max_GPUs=0,
+                                       dt=1e-2, save_stride=5,
+                                       ilqr_horizon=120, ilqr_max_iter=5,
+                                       quiet=true)
+    setup, solutions = main(;
+        Ntraj=Ntraj,
+        max_GPUs=max_GPUs,
+        systems=[:nominal_sys],
+        t_final=t_final,
+        dt=dt,
+        save_stride=save_stride,
+        ilqr_horizon=ilqr_horizon,
+        ilqr_max_iter=ilqr_max_iter,
+        quiet=quiet,
+    )
+    log_state_results(setup, solutions)
+    return generate_nominal_position_plots()
+end
+
+function run_uncertain_ensemble_and_plot(; Ntraj=50, t_final=10.0, max_GPUs=0,
+                                        dt=1e-2, save_stride=5,
+                                        ilqr_horizon=120, ilqr_max_iter=5,
+                                        brownian_sigma=0.12,
+                                        aleatoric_sigma=0.18,
+                                        quiet=true)
+    setup, solutions = main(;
+        Ntraj=Ntraj,
+        max_GPUs=max_GPUs,
+        systems=[:nominal_sys, :true_sys, :L1_sys],
+        t_final=t_final,
+        dt=dt,
+        save_stride=save_stride,
+        ilqr_horizon=ilqr_horizon,
+        ilqr_max_iter=ilqr_max_iter,
+        brownian_sigma=brownian_sigma,
+        aleatoric_sigma=aleatoric_sigma,
+        quiet=quiet,
     )
     log_state_results(setup, solutions)
     return generate_state_plots()
@@ -412,6 +490,26 @@ function generate_position_plot(; path=joinpath(@__DIR__, "quad_ilqr_sol_logs"),
     savefig(position_fig, joinpath(@__DIR__, filename))
     @info "Saved $filename"
     return position_fig
+end
+
+function generate_nominal_position_plots(; path=joinpath(@__DIR__, "quad_ilqr_sol_logs"),
+                                         max_traj=1000,
+                                         time_filename="quad_ilqr_nominal_position_plot.png",
+                                         xyz_filename="quad_ilqr_nominal_xyz_paths.png")
+    nom = load(joinpath(path, "states_nominal.jld2"))
+
+    setup = setup_system(; Ntraj=1)
+    x_goal = setup.nominal_system.nom_vec_fields.dynamics_params.x_goal
+
+    position_fig = plot_nominal_position_results(nom; x_goal=x_goal, max_traj=max_traj)
+    savefig(position_fig, joinpath(@__DIR__, time_filename))
+    @info "Saved $time_filename"
+
+    xyz_fig = plot_nominal_xyz_paths(nom; x_goal=x_goal, max_traj=max_traj)
+    savefig(xyz_fig, joinpath(@__DIR__, xyz_filename))
+    @info "Saved $xyz_filename"
+
+    return position_fig, xyz_fig
 end
 
 function generate_state_plots(; path=joinpath(@__DIR__, "quad_ilqr_sol_logs"), max_traj=1000)
