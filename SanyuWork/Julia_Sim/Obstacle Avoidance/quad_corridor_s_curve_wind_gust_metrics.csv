@@ -1,0 +1,4 @@
+system,rmse,max_error,worst_clearance,mean_clearance,collision_rate
+nominal,0.1753923646267861,0.4058686344730747,Inf,Inf,0.0
+true_disturbed,1.0845088891492518,1.9416512810006812,Inf,Inf,0.0
+L1_DRAC,1.0280188778290706,1.898012007049461,Inf,Inf,0.0
