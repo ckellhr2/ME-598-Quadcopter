@@ -37,9 +37,9 @@ function mean_rewrite(mean) # also works for "var" since they have the same stru
     return mean_new
 end
 
-data_dir = "/home/justi/ME-598-Quadcopter/SanyuWork/Julia_Sim/quad_ilqr_sol_logs/"
+data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/"
 save_dir = @__DIR__
-save_dir = save_dir * "/npy_logs/"
+save_dir = save_dir * "/data/"
 
 nom_name = "states_nominal"
 true_name = "states_true"
@@ -58,17 +58,3 @@ L1_states = Dict("t" => t_rewrite(L1_states_jl["t"]), "u" => u_rewrite(L1_states
 npzwrite(save_dir * nom_name * ".npz", nom_states)
 npzwrite(save_dir * true_name * ".npz", true_states)
 npzwrite(save_dir * L1_name * ".npz", L1_states)
-
-
-#nom_states["t"]
-
-
-#struct states
-#    t::Vector{Any}
-#    u::Vector{Any}
-#    mean::Vector{Any}
-#    var::Float32{Any}
-#end
-
-#typeof(nom_states["mean"])
-#size(nom_states["mean"])
