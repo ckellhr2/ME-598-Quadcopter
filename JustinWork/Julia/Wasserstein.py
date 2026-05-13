@@ -1,15 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import ot
-from pathlib import Path
 
 # SETUP
-state_list = [0,1,2]    # Select states to plot w2 data for
+state_list = [0,1,2,3,4,5,6,7,8,9,10,11]    # Select states to plot w2 data for
 state_registry = ["X", "Y", "Z", "Vx", "Vy", "Vz", "Roll", "Pitch", "Yaw", "Roll Rate", "Pitch Rate", "Yaw Rate"]
-w2_12 = False    # Whether to plot the 12D w2 data
+w2_12 = True    # Whether to plot the 12D w2 data
 
 # Path to the directory of this file
-data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/"   # Path to data
+data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/strong_15_85_2hz_clearance_planned/"   # Path to data
 
 nom_name = "states_nominal"
 true_name = "states_true"
@@ -52,7 +51,7 @@ for tstep in range(0,nom_u.shape[1]):
 if state_list != []:
     for state in state_list:
         plt.figure()
-        plt.plot(t, w2_nt[state,:], label = "Nominal-True")
+        plt.plot(t, w2_nt[state,:], label = "Nominal-iLQR")
         plt.plot(t, w2_nl[state,:], label = "Nominal-L1")
         plt.xlabel("Time (s)")
         plt.ylabel(f"{p}-Wasserstein Distance")
@@ -62,12 +61,11 @@ if state_list != []:
 
 if w2_12:
     plt.figure()
-    plt.plot(t, w2_nt12, label = "Nominal-True")
+    plt.plot(t, w2_nt12, label = "Nominal-iLQR")
     plt.plot(t, w2_nl12, label = "Nominal-L1")
     plt.xlabel("Time (s)")
     plt.ylabel(f"12D {p}-Wasserstein Distance")
     plt.title(f"Comparison of 12-Dimensional {p}-Wasserstein Distances: All States")
     plt.grid(True)
     plt.legend()
-
 plt.show()

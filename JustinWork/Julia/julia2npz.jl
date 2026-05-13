@@ -37,9 +37,10 @@ function mean_rewrite(mean) # also works for "var" since they have the same stru
     return mean_new
 end
 
-data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/"
-save_dir = @__DIR__
-save_dir = save_dir * "/data/"
+data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/strong_15_85_2hz_clearance_planned/"
+#save_dir = @__DIR__
+#save_dir = save_dir * "/data/strong_wind_gust/"
+save_dir = data_dir
 
 nom_name = "states_nominal"
 true_name = "states_true"
