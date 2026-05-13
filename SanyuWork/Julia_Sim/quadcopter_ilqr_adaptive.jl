@@ -213,7 +213,55 @@ function cost_final(x, x_goal, Qf)
     return dot(dx, Qf * dx)
 end
 
-function rollout_dynamics(x0, delta_u_seq, x_goal, dt, mass, inertia_diag, Q, R, Qf, hover)
+function obstacle_barrier_terms(x, obstacles, clearance;
+                                weight=0.0, eps=1e-3, huge_cost=1e12)
+    cost = 0.0
+    grad = zeros(NX_QUAD)
+    hess = zeros(NX_QUAD, NX_QUAD)
+
+    (weight <= 0.0 || isempty(obstacles)) && return cost, grad, hess
+
+    pos = x[1:3]
+    for obs in obstacles
+        center = obs.center
+        inflated_radius = obs.radius + clearance
+        rvec = pos .- center
+        dist = max(norm(rvec), eps)
+        gap = dist - inflated_radius
+
+        if gap <= eps
+            cost += huge_cost + weight * (eps - gap)^2 / eps^2
+            direction = rvec ./ dist
+            grad[1:3] .+= -2.0 * weight * (eps - gap) / eps^2 .* direction
+            hess[1:3, 1:3] .+= (2.0 * weight / eps^2) .* (direction * direction')
+            continue
+        end
+
+        direction = rvec ./ dist
+        cost += -weight * log(gap)
+        grad[1:3] .+= -(weight / gap) .* direction
+        hess_pos = (weight / gap^2) .* (direction * direction') -
+                   (weight / gap) .* ((Matrix{Float64}(I, 3, 3) - direction * direction') ./ dist)
+        hess[1:3, 1:3] .+= 0.5 .* (hess_pos + hess_pos')
+    end
+
+    return cost, grad, hess
+end
+
+function cost_stage(x, delta_u, x_goal, Q, R, obstacles, clearance, barrier_weight)
+    base_cost = cost_stage(x, delta_u, x_goal, Q, R)
+    barrier_cost, _, _ = obstacle_barrier_terms(x, obstacles, clearance; weight=barrier_weight)
+    return base_cost + barrier_cost
+end
+
+function cost_final(x, x_goal, Qf, obstacles, clearance, barrier_weight)
+    base_cost = cost_final(x, x_goal, Qf)
+    barrier_cost, _, _ = obstacle_barrier_terms(x, obstacles, clearance; weight=barrier_weight)
+    return base_cost + barrier_cost
+end
+
+function rollout_dynamics(x0, delta_u_seq, x_goal, dt, mass, inertia_diag, Q, R, Qf, hover;
+                          obstacles=(), obstacle_clearance=0.0, obstacle_barrier_weight=0.0)
     horizon = size(delta_u_seq, 1)
     x_seq = zeros(horizon + 1, NX_QUAD)
     u_abs_seq = zeros(horizon, NU_QUAD)
@@ -226,15 +274,18 @@ function rollout_dynamics(x0, delta_u_seq, x_goal, dt, mass, inertia_diag, Q, R,
         delta_u_clipped = u_abs .- hover
         x_seq[k + 1, :] .= A * x_seq[k, :] .+ B * delta_u_clipped
         u_abs_seq[k, :] .= u_abs
-        total_cost += cost_stage(x_seq[k, :], delta_u_clipped, x_goal, Q, R)
+        total_cost += cost_stage(x_seq[k, :], delta_u_clipped, x_goal, Q, R,
+                                 obstacles, obstacle_clearance, obstacle_barrier_weight)
     end
 
-    total_cost += cost_final(x_seq[end, :], x_goal, Qf)
+    total_cost += cost_final(x_seq[end, :], x_goal, Qf,
+                             obstacles, obstacle_clearance, obstacle_barrier_weight)
     return x_seq, u_abs_seq, total_cost
 end
 
 function ilqr(x0, x_goal, horizon, dt, mass, inertia_diag, Q, R, Qf;
-              u_init=nothing, max_iter=5)
+              u_init=nothing, max_iter=5,
+              obstacles=(), obstacle_clearance=0.0, obstacle_barrier_weight=0.0)
     hover = mass * GRAVITY / 4.0
     if u_init === nothing
         delta_u_seq = zeros(horizon, NU_QUAD)
@@ -244,11 +295,19 @@ function ilqr(x0, x_goal, horizon, dt, mass, inertia_diag, Q, R, Qf;
 
     for _ in 1:max_iter
         x_seq, _, current_cost = rollout_dynamics(
-            x0, delta_u_seq, x_goal, dt, mass, inertia_diag, Q, R, Qf, hover
+            x0, delta_u_seq, x_goal, dt, mass, inertia_diag, Q, R, Qf, hover;
+            obstacles=obstacles,
+            obstacle_clearance=obstacle_clearance,
+            obstacle_barrier_weight=obstacle_barrier_weight,
         )
 
         Vx = 2.0 .* (Qf * (x_seq[end, :] - x_goal))
         Vxx = 2.0 .* Qf
+        _, final_barrier_grad, final_barrier_hess = obstacle_barrier_terms(
+            x_seq[end, :], obstacles, obstacle_clearance; weight=obstacle_barrier_weight
+        )
+        Vx .+= final_barrier_grad
+        Vxx .+= final_barrier_hess
         K = zeros(horizon, NU_QUAD, NX_QUAD)
         k_ff = zeros(horizon, NU_QUAD)
 
@@ -261,6 +320,11 @@ function ilqr(x0, x_goal, horizon, dt, mass, inertia_diag, Q, R, Qf;
             lxx = 2.0 .* Q
             luu = 2.0 .* R
             lux = zeros(NU_QUAD, NX_QUAD)
+            _, barrier_grad, barrier_hess = obstacle_barrier_terms(
+                x_seq[k, :], obstacles, obstacle_clearance; weight=obstacle_barrier_weight
+            )
+            lx .+= barrier_grad
+            lxx .+= barrier_hess
 
             Qx = lx + A' * Vx
             Qu = lu + B' * Vx
@@ -299,7 +363,10 @@ function ilqr(x0, x_goal, horizon, dt, mass, inertia_diag, Q, R, Qf;
             end
 
             _, trial_u_abs_seq, trial_cost = rollout_dynamics(
-                x0, trial_delta_u_seq, x_goal, dt, mass, inertia_diag, Q, R, Qf, hover
+                x0, trial_delta_u_seq, x_goal, dt, mass, inertia_diag, Q, R, Qf, hover;
+                obstacles=obstacles,
+                obstacle_clearance=obstacle_clearance,
+                obstacle_barrier_weight=obstacle_barrier_weight,
             )
 
             if trial_cost < current_cost
@@ -352,6 +419,9 @@ function quadrotor_ilqr_input(t, x, dp)
         dp.Qf;
         u_init=dp.u_hover_init,
         max_iter=dp.ilqr_max_iter,
+        obstacles=dp.obstacles,
+        obstacle_clearance=dp.obstacle_clearance,
+        obstacle_barrier_weight=dp.obstacle_barrier_weight,
     )
     return u_seq[1, :]
 end
@@ -532,6 +602,9 @@ function setup_system(; Ntraj=2, t_final=1.0, dt=1e-2, save_stride=5,
                       L1_lateral_velocity_gain=0.0,
                       reference_func=nothing,
                       reference_lookahead=0.0,
+                      obstacles=(),
+                      obstacle_clearance=0.0,
+                      obstacle_barrier_weight=0.0,
                       initial_mean_offset=zeros(NX_QUAD),
                       simulated_system=nothing,
                       wind_profile=DEFAULT_WIND_PROFILE,
@@ -573,6 +646,9 @@ function setup_system(; Ntraj=2, t_final=1.0, dt=1e-2, save_stride=5,
         x_goal = x_goal,
         reference_func = reference_func,
         reference_lookahead = reference_lookahead,
+        obstacles = obstacles,
+        obstacle_clearance = obstacle_clearance,
+        obstacle_barrier_weight = obstacle_barrier_weight,
         hover_nominal = hover_nominal,
         u_hover_init = fill(1.01 * hover_nominal, ilqr_horizon, NU_QUAD),
         horizon = ilqr_horizon,
@@ -709,6 +785,9 @@ function main(; Ntraj=2, max_GPUs=0, systems=[:nominal_sys, :true_sys, :L1_sys],
               L1_lateral_velocity_gain=0.0,
               reference_func=nothing,
               reference_lookahead=0.0,
+              obstacles=(),
+              obstacle_clearance=0.0,
+              obstacle_barrier_weight=0.0,
               initial_mean_offsets=DEFAULT_INITIAL_MEAN_OFFSETS,
               wind_profile=DEFAULT_WIND_PROFILE,
               fault_profile=DEFAULT_FAULT_PROFILE,
@@ -742,6 +821,9 @@ function main(; Ntraj=2, max_GPUs=0, systems=[:nominal_sys, :true_sys, :L1_sys],
         L1_lateral_velocity_gain=L1_lateral_velocity_gain,
         reference_func=reference_func,
         reference_lookahead=reference_lookahead,
+        obstacles=obstacles,
+        obstacle_clearance=obstacle_clearance,
+        obstacle_barrier_weight=obstacle_barrier_weight,
         wind_profile=wind_profile,
         fault_profile=fault_profile,
         aero_damage_profile=aero_damage_profile,
@@ -775,6 +857,9 @@ function main(; Ntraj=2, max_GPUs=0, systems=[:nominal_sys, :true_sys, :L1_sys],
         L1_lateral_velocity_gain=L1_lateral_velocity_gain,
         reference_func=reference_func,
         reference_lookahead=reference_lookahead,
+        obstacles=obstacles,
+        obstacle_clearance=obstacle_clearance,
+        obstacle_barrier_weight=obstacle_barrier_weight,
         wind_profile=wind_profile,
         fault_profile=fault_profile,
         aero_damage_profile=aero_damage_profile,

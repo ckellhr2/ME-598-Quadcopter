@@ -1,0 +1,12 @@
+case,true_max_deviation,L1_max_deviation,min_effectiveness,max_effectiveness,freq_hz
+vt_severe_10_70_3hz,12.053669957630724,1.4030556829128582,0.10000000000000003,0.7,3.0
+vt_mild_40_90_1p25hz,0.8970236582278798,0.9667195117208567,0.4,0.9,1.25
+vt_strong_15_85_2hz,2.2158519128944243,1.1442608138849149,0.15000000000000002,0.85,2.0
+
+worst_case_for_L1_planning,vt_severe_10_70_3hz
+L1_worst_deviation,1.4030556829128582
+vehicle_radius,0.15
+margin,0.1
+L1_required_clearance,1.6530556829128582
+nominal_reference_clearance,-0.11077749756818017
+clearance_safe,false
