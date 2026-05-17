@@ -30,7 +30,7 @@ confidence_level = 0.05     # Confidence level for CVaR
 
 
 # Path to the directory of this file
-data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/free_flight/"   # Path to data
+data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/baseline/"   # Path to data``
 
 nom_name = "states_nominal"
 true_name = "states_true"

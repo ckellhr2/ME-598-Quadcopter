@@ -3,13 +3,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import ot
 
-def distance_distribution(system, obstacle_pos, radius):
-    distances = np.zeros((system.shape[0],system.shape[1]))
-    for tstep in range(system.shape[1]):
-        for trial in range(system.shape[0]):
-            distances[trial, tstep] = np.linalg.norm(system[trial, tstep, 0:3] - obstacle) - radius
-    return distances
-
 def distance_distribution_corridor(system, path):
     distances = np.zeros((system.shape[0],system.shape[1]))
     for tstep in range(system.shape[1]):
@@ -103,28 +96,28 @@ for tstep in range(t.shape[0]):
     L1_u_stats[:, tstep] = calculate_stats(L1_u_dist[:, tstep], confidence_level)
 
 plt.figure()
-plt.plot(t, nom_u_stats[0,:], color="#FF0000", label = f"Nominal-VaR, max = {nom_u_stats[0,:].max():.2f} m")
-plt.plot(t, nom_u_stats[1,:], color="#FF7070", label = f"Nominal-CVaR, max = {nom_u_stats[1,:].max():.2f} m")
-plt.plot(t, true_u_stats[0,:], color="#00FF00", label = f"True-VaR, max = {true_u_stats[0,:].max():.2f} m")
-plt.plot(t, true_u_stats[1,:], color="#70FF70", label = f"True-CVaR, max = {true_u_stats[1,:].max():.2f} m")
-plt.plot(t, L1_u_stats[0,:], color="#0000FF", label = f"L1-VaR, max = {L1_u_stats[0,:].max():.2f} m")
-plt.plot(t, L1_u_stats[1,:], color="#7070FF", label = f"L1-CVaR, max = {L1_u_stats[1,:].max():.2f} m")
+#plt.plot(t, nom_u_stats[0,:], color="#FF0000", label = f"Nominal-VaR, max = {nom_u_stats[0,:].max():.2f} m")
+plt.plot(t, nom_u_stats[1,:], color="#FF7070", label = f"Nominal iLQR, max = {nom_u_stats[1,:].max():.2f} m")
+#plt.plot(t, true_u_stats[0,:], color="#00FF00", label = f"True-VaR, max = {true_u_stats[0,:].max():.2f} m")
+plt.plot(t, true_u_stats[1,:], color="#70FF70", label = f"Stochastic iLQR, max = {true_u_stats[1,:].max():.2f} m")
+#plt.plot(t, L1_u_stats[0,:], color="#0000FF", label = f"L1-VaR, max = {L1_u_stats[0,:].max():.2f} m")
+plt.plot(t, L1_u_stats[1,:], color="#7070FF", label = f"Stochastic iLQR+L1, max = {L1_u_stats[1,:].max():.2f} m")
 plt.xlabel("Time (s)")
-plt.ylabel(f"VaR or CVaR (m)")
-plt.title(f"Value at Risk (VaR) and Conditional Value at Risk (CVaR) Over Time")
-plt.grid(True)
-plt.legend()
+plt.ylabel(f"CVaR (m)")
+#plt.title(f"Value at Risk (VaR) and Conditional Value at Risk (CVaR) Over Time")
+plt.title(f"Conditional Value at Risk (CVaR) Over Time")
 
 plt.figure()
 #plt.plot(t, nom_u_stats[0,:], color="#FF0000", label = f"Nominal-VaR, max = {nom_u_stats[0,:].max():.2f} m")
 #plt.plot(t, nom_u_stats[1,:], color="#FF7070", label = f"Nominal-CVaR, max = {nom_u_stats[1,:].max():.2f} m")
 #plt.plot(t, true_u_stats[0,:], color="#00FF00", label = f"True-VaR, max = {true_u_stats[0,:].max():.2f} m")
 #plt.plot(t, true_u_stats[1,:], color="#70FF70", label = f"True-CVaR, max = {true_u_stats[1,:].max():.2f} m")
-plt.plot(t, L1_u_stats[0,:], color="#0000FF", label = f"L1-VaR, max = {L1_u_stats[0,:].max():.2f} m")
-plt.plot(t, L1_u_stats[1,:], color="#7070FF", label = f"L1-CVaR, max = {L1_u_stats[1,:].max():.2f} m")
+#plt.plot(t, L1_u_stats[0,:], color="#0000FF", label = f"L1-VaR, max = {L1_u_stats[0,:].max():.2f} m")
+plt.plot(t, L1_u_stats[1,:], color="#7070FF", label = f"Stochastic iLQR+L1, max = {L1_u_stats[1,:].max():.2f} m")
 plt.xlabel("Time (s)")
-plt.ylabel(f"VaR or CVaR (m)")
-plt.title(f"Value at Risk (VaR) and Conditional Value at Risk (CVaR) Over Time")
+plt.ylabel(f"CVaR (m)")
+#plt.title(f"Value at Risk (VaR) and Conditional Value at Risk (CVaR) Over Time")
+plt.title(f"Conditional Value at Risk (CVaR) Over Time")
 plt.grid(True)
 plt.legend()
 plt.show()

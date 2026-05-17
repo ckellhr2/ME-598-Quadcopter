@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 import ot
 
 # SETUP
-state_list = [0,1,2,3,4,5,6,7,8,9,10,11]    # Select states to plot w2 data for
+state_list = []    # Select states to plot w2 data for
 state_registry = ["X", "Y", "Z", "Vx", "Vy", "Vz", "Roll", "Pitch", "Yaw", "Roll Rate", "Pitch Rate", "Yaw Rate"]
 w2_12 = True    # Whether to plot the 12D w2 data
 
 # Path to the directory of this file
-data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/strong_15_85_2hz_clearance_planned/"   # Path to data
+data_dir = "/home/justi/ME-598-Quadcopter/JustinWork/Julia/data/variable_thrust/"   # Path to data
 
 nom_name = "states_nominal"
 true_name = "states_true"
@@ -37,9 +37,10 @@ c = np.ones(L1_u.shape[0]) / L1_u.shape[0]
 
 # Wasserstein distance between nominal and true (nt) and nominal and L1 (nl) systems at each timestep for each state and for all states together
 for tstep in range(0,nom_u.shape[1]):
-    for state in range(0,nom_u.shape[2]):   # 2-Wasserstein distance per state
-        w2_nt[state, tstep] = ot.wasserstein_1d(nom_u[:,tstep,state], true_u[:,tstep,state], p=p)
-        w2_nl[state, tstep] = ot.wasserstein_1d(nom_u[:,tstep,state], L1_u[:,tstep,state], p=p)
+    if state_list != []:
+        for state in range(0,nom_u.shape[2]):   # 2-Wasserstein distance per state
+            w2_nt[state, tstep] = ot.wasserstein_1d(nom_u[:,tstep,state], true_u[:,tstep,state], p=p)
+            w2_nl[state, tstep] = ot.wasserstein_1d(nom_u[:,tstep,state], L1_u[:,tstep,state], p=p)
     
     if w2_12:   # 12-D 2-Wasserstein distance across all states
         # p here refers to the type of norm and not wasserstein moment - must be 2
@@ -51,18 +52,18 @@ for tstep in range(0,nom_u.shape[1]):
 if state_list != []:
     for state in state_list:
         plt.figure()
-        plt.plot(t, w2_nt[state,:], label = "Nominal-iLQR")
-        plt.plot(t, w2_nl[state,:], label = "Nominal-L1")
+        plt.plot(t, w2_nt[state,:], label = "Nominal iLQR vs. Stochastic iLQR")
+        plt.plot(t, w2_nl[state,:], label = "Nominal iLQR vs. Stochastic iLQR+L1")
         plt.xlabel("Time (s)")
-        plt.ylabel(f"{p}-Wasserstein Distance")
+        plt.ylabel(f"{p}-Wasserstein Distance (m)")
         plt.title(f"Comparison of {p}-Wasserstein Distances: State {state_registry[state]}")
         plt.grid(True)
         plt.legend()
 
 if w2_12:
     plt.figure()
-    plt.plot(t, w2_nt12, label = "Nominal-iLQR")
-    plt.plot(t, w2_nl12, label = "Nominal-L1")
+    plt.plot(t, w2_nt12, label = "Nominal iLQR vs. Stochastic iLQR")
+    plt.plot(t, w2_nl12, label = "Nominal iLQR vs. Stochastic iLQR+L1")
     plt.xlabel("Time (s)")
     plt.ylabel(f"12D {p}-Wasserstein Distance")
     plt.title(f"Comparison of 12-Dimensional {p}-Wasserstein Distances: All States")
